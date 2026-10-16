@@ -32,6 +32,7 @@ struct DashboardView: View {
     @State private var categorySection: CategoryType = .expense
     @State private var showingAddGoal = false
     @State private var goalToEdit: Goal?
+    @State private var goalToContribute: Goal?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
 
@@ -183,6 +184,9 @@ struct DashboardView: View {
             }
             .sheet(item: $goalToEdit) { goal in
                 GoalFormView(goalToEdit: goal)
+            }
+            .sheet(item: $goalToContribute) { goal in
+                GoalContributeSheet(goal: goal, netCashFlow: netCashFlow)
             }
         }
     }
@@ -484,7 +488,7 @@ struct DashboardView: View {
                 VStack(spacing: 8) {
                     Text("No savings goals yet.")
                         .font(.subheadline.bold())
-                    Text("Track emergency funds, vacations, or investments funded by your surplus cash flow.")
+                    Text("Track emergency funds, vacations, or major purchases funded by your income surplus.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -500,9 +504,16 @@ struct DashboardView: View {
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
             } else {
                 ForEach(goals) { goal in
-                    GoalRowView(goal: goal, netCashFlow: netCashFlow)
-                        .contentShape(Rectangle())
-                        .onTapGesture { goalToEdit = goal }
+                    GoalRowView(
+                        goal: goal,
+                        netCashFlow: netCashFlow,
+                        onContribute: {
+                            goalToContribute = goal
+                        },
+                        onEdit: {
+                            goalToEdit = goal
+                        }
+                    )
                 }
             }
         }
@@ -515,32 +526,35 @@ struct GoalRowView: View {
     @AppStorage("currencyCode") private var currencyCode = "USD"
     let goal: Goal
     let netCashFlow: Decimal
-
-    private var progress: Double {
-        guard goal.targetAmount > 0 else { return 0 }
-        return NSDecimalNumber(decimal: min(goal.savedAmount / goal.targetAmount, 1)).doubleValue
-    }
+    let onContribute: () -> Void
+    let onEdit: () -> Void
 
     private var isMonthlyFunded: Bool {
         goal.monthlyContribution > 0 && netCashFlow >= goal.monthlyContribution
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(CategoryColor.color(named: goal.colorName).opacity(0.18))
-                        .frame(width: 38, height: 38)
+                        .frame(width: 40, height: 40)
                     Image(systemName: goal.icon)
+                        .font(.title3)
                         .foregroundStyle(CategoryColor.color(named: goal.colorName))
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(goal.name)
                         .font(.subheadline.bold())
-                    if goal.monthlyContribution > 0 {
-                        Text("\(goal.monthlyContribution, format: .currency(code: currencyCode).precision(.fractionLength(0))) / month target")
+
+                    if let targetDate = goal.targetDate, let months = goal.monthsRemaining {
+                        Text("Target: \(targetDate.formatted(.dateTime.month().year())) • \(months) mo\(months == 1 ? "" : "s") left")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else if let projected = goal.projectedCompletionDate {
+                        Text("Projected: \(projected.formatted(.dateTime.month().year()))")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -548,22 +562,143 @@ struct GoalRowView: View {
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(goal.savedAmount, format: .currency(code: currencyCode).precision(.fractionLength(0))) of \(goal.targetAmount, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
+                Button {
+                    onContribute()
+                } label: {
+                    Label("Add", systemImage: "plus")
                         .font(.caption.bold())
-                    if isMonthlyFunded {
-                        Text("Funded this period ✓")
-                            .font(.caption2.bold())
-                            .foregroundStyle(.green)
-                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(CategoryColor.color(named: goal.colorName))
             }
 
-            ProgressView(value: progress)
+            ProgressView(value: goal.progress)
                 .tint(CategoryColor.color(named: goal.colorName))
+
+            HStack {
+                Text("\(goal.savedAmount, format: .currency(code: currencyCode).precision(.fractionLength(0))) of \(goal.targetAmount, format: .currency(code: currencyCode).precision(.fractionLength(0))) (\(Int(goal.progress * 100))%)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if goal.monthlyContribution > 0 {
+                    HStack(spacing: 4) {
+                        Text("+\(goal.monthlyContribution, format: .currency(code: currencyCode).precision(.fractionLength(0)))/mo")
+                            .font(.caption.bold())
+                        if isMonthlyFunded {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    .foregroundStyle(isMonthlyFunded ? .green : .secondary)
+                }
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit()
+        }
+    }
+}
+
+// MARK: - Goal Contribute Sheet
+
+struct GoalContributeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("currencyCode") private var currencyCode = "USD"
+    let goal: Goal
+    let netCashFlow: Decimal
+
+    @State private var amountText = ""
+
+    private var amount: Decimal {
+        Decimal(string: amountText) ?? 0
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Goal") {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(CategoryColor.color(named: goal.colorName).opacity(0.18))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: goal.icon)
+                                .font(.title3)
+                                .foregroundStyle(CategoryColor.color(named: goal.colorName))
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(goal.name)
+                                .font(.headline)
+                            Text("\(goal.savedAmount, format: .currency(code: currencyCode).precision(.fractionLength(0))) saved of \(goal.targetAmount, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Section("Amount to Add") {
+                    TextField("Amount", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .font(.title3.bold())
+
+                    HStack {
+                        if goal.monthlyContribution > 0 {
+                            Button("Monthly Target (\(goal.monthlyContribution, format: .currency(code: currencyCode).precision(.fractionLength(0))))") {
+                                amountText = "\(goal.monthlyContribution)"
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+
+                        if netCashFlow > 0 {
+                            Button("Current Surplus (\(netCashFlow, format: .currency(code: currencyCode).precision(.fractionLength(0))))") {
+                                amountText = "\(netCashFlow)"
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+
+                if amount > 0 {
+                    Section {
+                        let newTotal = goal.savedAmount + amount
+                        let newProgress = goal.targetAmount > 0 ? NSDecimalNumber(decimal: min(newTotal / goal.targetAmount, 1)).doubleValue : 0
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("New Total: \(newTotal, format: .currency(code: currencyCode).precision(.fractionLength(0))) (\(Int(newProgress * 100))%)")
+                                .font(.subheadline.bold())
+                            ProgressView(value: newProgress)
+                                .tint(CategoryColor.color(named: goal.colorName))
+                        }
+                        .padding(.vertical, 4)
+                    } header: {
+                        Text("Updated Progress")
+                    }
+                }
+            }
+            .navigationTitle("Add to Goal")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add Funds") {
+                        goal.savedAmount += amount
+                        dismiss()
+                    }
+                    .disabled(amount <= 0)
+                }
+            }
+        }
     }
 }
 

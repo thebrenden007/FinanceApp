@@ -13,18 +13,22 @@ struct CategoryFormView: View {
     @Environment(\.dismiss) private var dismiss
 
     var categoryToEdit: Category?
+    var defaultIsIncome: Bool = false
 
     @State private var name: String
     @State private var limitText: String
     @State private var icon: String
     @State private var colorName: String
+    @State private var isIncome: Bool
     
     private let icons = [
         "cart.fill", "house.fill", "car.fill", "fork.knife", "heart.fill",
         "gift.fill", "bolt.fill", "tv.fill", "airplane", "book.fill",
         "pawprint.fill", "figure.run", "cross.case.fill", "graduationcap.fill",
         "tshirt.fill", "wrench.and.screwdriver.fill", "creditcard.fill",
-        "banknote.fill", "tag.fill", "star.fill"
+        "banknote.fill", "tag.fill", "star.fill",
+        "laptopcomputer", "chart.line.uptrend.xyaxis", "briefcase.fill", "dollarsign.circle.fill",
+        "building.columns.fill"
     ]
 
     private var monthlyLimit: Decimal {
@@ -35,19 +39,27 @@ struct CategoryFormView: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && monthlyLimit >= 0
     }
 
-    init(categoryToEdit: Category? = nil) {
+    init(categoryToEdit: Category? = nil, defaultIsIncome: Bool = false) {
         self.categoryToEdit = categoryToEdit
+        self.defaultIsIncome = defaultIsIncome
         _name = State(initialValue: categoryToEdit?.name ?? "")
         _limitText = State(initialValue: categoryToEdit.map { "\($0.monthlyLimit)" } ?? "")
-        _icon = State(initialValue: categoryToEdit?.icon ?? "tag.fill")
-        _colorName = State(initialValue: categoryToEdit?.colorName ?? "blue")
+        _icon = State(initialValue: categoryToEdit?.icon ?? (defaultIsIncome ? "banknote.fill" : "tag.fill"))
+        _colorName = State(initialValue: categoryToEdit?.colorName ?? (defaultIsIncome ? "green" : "blue"))
+        _isIncome = State(initialValue: categoryToEdit?.isIncome ?? defaultIsIncome)
     }
 
     var body: some View {
         NavigationStack {
             Form {
+                Picker("Category Type", selection: $isIncome) {
+                    Text("Expense").tag(false)
+                    Text("Income").tag(true)
+                }
+                .pickerStyle(.segmented)
+
                 TextField("Name", text: $name)
-                TextField("Monthly limit", text: $limitText)
+                TextField(isIncome ? "Expected Monthly Income" : "Monthly Budget Limit", text: $limitText)
                     .keyboardType(.decimalPad)
 
                 Section("Icon") {
@@ -63,6 +75,7 @@ struct CategoryFormView: View {
                     }
                     .padding(.vertical, 8)
                 }
+
                 Section("Color") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 16) {
                         ForEach(CategoryColor.options, id: \.name) { option in
@@ -80,7 +93,7 @@ struct CategoryFormView: View {
                     .padding(.vertical, 8)
                 }
             }
-            .navigationTitle(categoryToEdit == nil ? "New Category" : "Edit Category")
+            .navigationTitle(categoryToEdit == nil ? (isIncome ? "New Income Category" : "New Expense Category") : "Edit Category")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -100,9 +113,10 @@ struct CategoryFormView: View {
             category.icon = icon
             category.monthlyLimit = monthlyLimit
             category.colorName = colorName
+            category.isIncome = isIncome
         } else {
             let category = Category(name: trimmed, icon: icon,
-                                    monthlyLimit: monthlyLimit, colorName: colorName)
+                                    monthlyLimit: monthlyLimit, colorName: colorName, isIncome: isIncome)
             modelContext.insert(category)
         }
         dismiss()

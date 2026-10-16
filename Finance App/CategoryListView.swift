@@ -13,45 +13,86 @@ struct CategoryListView: View {
     @Query(sort: \Category.name) private var categories: [Category]
     @State private var showingForm = false
     @State private var categoryToEdit: Category?
+    @State private var showingIncome = false
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    
+
+    private var filteredCategories: [Category] {
+        categories.filter { $0.isIncome == showingIncome }
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(categories) { category in
-                    HStack {
-                        Image(systemName: category.icon)
-                        Text(category.name)
-                        Spacer()
-                        Text(category.monthlyLimit, format: .currency(code: currencyCode))
-                            .foregroundStyle(.secondary)
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { categoryToEdit = category }
+            VStack(spacing: 0) {
+                Picker("Category Type", selection: $showingIncome) {
+                    Text("Expenses").tag(false)
+                    Text("Income").tag(true)
                 }
-                .onDelete(perform: delete)
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                List {
+                    ForEach(filteredCategories) { category in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(CategoryColor.color(named: category.colorName).opacity(0.18))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: category.icon)
+                                    .foregroundStyle(CategoryColor.color(named: category.colorName))
+                            }
+
+                            Text(category.name)
+                                .font(.body)
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(category.monthlyLimit, format: .currency(code: currencyCode))
+                                    .bold()
+                                Text(showingIncome ? "Target" : "Limit")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { categoryToEdit = category }
+                    }
+                    .onDelete(perform: delete)
+                }
+                .overlay {
+                    if filteredCategories.isEmpty {
+                        ContentUnavailableView(
+                            showingIncome ? "No Income Categories" : "No Expense Categories",
+                            systemImage: showingIncome ? "banknote" : "tag",
+                            description: Text(showingIncome ? "Add categories like Salary, Freelance, or Investments." : "Add categories to budget your expenses.")
+                        )
+                    }
+                }
             }
             .navigationTitle("Categories")
             .profileButton()
             .toolbar {
-                Button {
-                    showingForm = true
-                } label: {
-                    Image(systemName: "plus")
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingForm = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
             .sheet(isPresented: $showingForm) {
-                CategoryFormView()
+                CategoryFormView(defaultIsIncome: showingIncome)
             }
             .sheet(item: $categoryToEdit) { category in
-                CategoryFormView(categoryToEdit: category)
+                CategoryFormView(categoryToEdit: category, defaultIsIncome: category.isIncome)
             }
         }
     }
 
     private func delete(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(categories[index])
+            modelContext.delete(filteredCategories[index])
         }
     }
 }

@@ -12,20 +12,32 @@ struct ProfileView: View {
     @AppStorage("currencyCode") private var currencyCode = "USD"
     @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
     @AppStorage("avatarColor") private var avatarColor = "blue"
+    @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
     @Environment(\.dismiss) private var dismiss
-    
+
     private let avatarIcons = [
-        "person.fill", "face.smiling", "star.fill", "heart.fill", "leaf.fill", "flame.fill", "bolt.fill", "pawprint.fill", "moon.fill", "sun.max.fill"
+        "person.fill", "face.smiling", "star.fill", "heart.fill", "leaf.fill",
+        "flame.fill", "bolt.fill", "pawprint.fill", "moon.fill", "sun.max.fill"
     ]
-    
+
     var body: some View {
-        NavigationStack{
-            Form{
-                Section("You"){
+        NavigationStack {
+            Form {
+                Section("You") {
                     TextField("Your name", text: $userName)
                 }
-                Section("Avatar"){
-                    ZStack{
+
+                Section {
+                    TextField("Expected Monthly Income", value: $monthlyIncome, format: .currency(code: currencyCode))
+                        .keyboardType(.decimalPad)
+                } header: {
+                    Text("Baseline Income")
+                } footer: {
+                    Text("Used for zero-based budget planning and cash flow targets on your dashboard.")
+                }
+
+                Section("Avatar") {
+                    ZStack {
                         Circle()
                             .fill(CategoryColor.color(named: avatarColor))
                         Image(systemName: avatarIcon)
@@ -35,7 +47,7 @@ struct ProfileView: View {
                     .frame(width: 80, height: 80)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    
+
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 16) {
                         ForEach(avatarIcons, id: \.self) { symbol in
                             Image(systemName: symbol)
@@ -47,7 +59,7 @@ struct ProfileView: View {
                         }
                     }
                     .padding(.vertical, 8)
-                    
+
                     // Color grid
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 16) {
                         ForEach(CategoryColor.options, id: \.name) { option in
@@ -64,7 +76,7 @@ struct ProfileView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                
+
                 Section {
                     Picker("Currency", selection: $currencyCode) {
                         ForEach(Locale.commonISOCurrencyCodes, id: \.self) { code in
@@ -88,6 +100,7 @@ struct ProfileView: View {
         }
     }
 }
+
 #Preview {
     ProfileView()
 }

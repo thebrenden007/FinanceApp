@@ -13,15 +13,25 @@ enum Period: String, CaseIterable {
     case year = "Year"
 }
 
+enum CategoryType: String, CaseIterable {
+    case expense = "Expenses"
+    case income = "Income"
+}
+
 struct DashboardView: View {
     @AppStorage("userName") private var userName = ""
     @AppStorage("currencyCode") private var currencyCode = "USD"
+    @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
 
     @Query(sort: \Category.name) private var categories: [Category]
     @Query private var transactions: [BudgetTransaction]
+    @Query(sort: \Goal.createdDate) private var goals: [Goal]
 
     @State private var period: Period = .month
     @State private var selectedDate = Date.now
+    @State private var categorySection: CategoryType = .expense
+    @State private var showingAddGoal = false
+    @State private var goalToEdit: Goal?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
 
@@ -36,7 +46,6 @@ struct DashboardView: View {
         return transactions.filter { $0.date >= interval.start && $0.date < interval.end }
     }
 
-    // Category limits are monthly, so a year compares against 12 months of budget
     private var limitMultiplier: Decimal { period == .year ? 12 : 1 }
 
     private var isCurrentPeriod: Bool {
@@ -55,7 +64,17 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Totals
+    // MARK: - Filtered Categories
+
+    private var expenseCategories: [Category] {
+        categories.filter { !$0.isIncome }
+    }
+
+    private var incomeCategories: [Category] {
+        categories.filter { $0.isIncome }
+    }
+
+    // MARK: - Totals & Calculations
 
     private var totalSpent: Decimal {
         periodTransactions.filter { $0.isExpense }.reduce(0) { $0 + $1.amount }
@@ -65,9 +84,53 @@ struct DashboardView: View {
         periodTransactions.filter { !$0.isExpense }.reduce(0) { $0 + $1.amount }
     }
 
+    private var netCashFlow: Decimal {
+        totalIncome - totalSpent
+    }
+
+    private var savingsRate: Double? {
+        guard totalIncome > 0 else { return nil }
+        return NSDecimalNumber(decimal: (netCashFlow / totalIncome) * 100).doubleValue
+    }
+
+    private var totalLimit: Decimal {
+        expenseCategories.reduce(Decimal.zero) { $0 + $1.monthlyLimit } * limitMultiplier
+    }
+
+    private var totalIncomeTarget: Decimal {
+        let categoryTargets = incomeCategories.reduce(Decimal.zero) { $0 + $1.monthlyLimit } * limitMultiplier
+        if categoryTargets > 0 {
+            return categoryTargets
+        }
+        return Decimal(monthlyIncome) * limitMultiplier
+    }
+
+    private var expenseProgress: Double {
+        guard totalLimit > 0 else {
+            if totalIncome > 0 {
+                return NSDecimalNumber(decimal: totalSpent / totalIncome).doubleValue
+            }
+            return 0
+        }
+        return NSDecimalNumber(decimal: totalSpent / totalLimit).doubleValue
+    }
+
+    private var incomeProgress: Double {
+        guard totalIncomeTarget > 0 else {
+            return totalIncome > 0 ? 1.0 : 0
+        }
+        return NSDecimalNumber(decimal: totalIncome / totalIncomeTarget).doubleValue
+    }
+
     private var uncategorizedSpent: Decimal {
         periodTransactions
             .filter { $0.isExpense && $0.category == nil }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var uncategorizedIncome: Decimal {
+        periodTransactions
+            .filter { !$0.isExpense && $0.category == nil }
             .reduce(0) { $0 + $1.amount }
     }
 
@@ -77,13 +140,10 @@ struct DashboardView: View {
             .reduce(0) { $0 + $1.amount }
     }
 
-    private var totalLimit: Decimal {
-        categories.reduce(Decimal.zero) { $0 + $1.monthlyLimit } * limitMultiplier
-    }
-
-    private var totalProgress: Double {
-        guard totalLimit > 0 else { return 0 }
-        return NSDecimalNumber(decimal: totalSpent / totalLimit).doubleValue
+    private func earned(in category: Category) -> Decimal {
+        periodTransactions
+            .filter { !$0.isExpense && $0.category === category }
+            .reduce(0) { $0 + $1.amount }
     }
 
     private var greeting: String {
@@ -105,33 +165,11 @@ struct DashboardView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     periodPicker
-                    heroRing
+                    heroDualRing
                     summaryCard
-
-                    LazyVGrid(columns: columns, spacing: 24) {
-                        ForEach(categories) { category in
-                            CategoryRingCell(
-                                name: category.name,
-                                icon: category.icon,
-                                spent: spent(in: category),
-                                limit: category.monthlyLimit * limitMultiplier,
-                                color: CategoryColor.color(named: category.colorName)
-                            )
-                        }
-                    }
-                    .padding(.vertical, 8)
-
-                    if uncategorizedSpent > 0 {
-                        HStack {
-                            Image(systemName: "questionmark.circle")
-                            Text("Uncategorized")
-                            Spacer()
-                            Text(uncategorizedSpent, format: .currency(code: currencyCode))
-                                .bold()
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-                    }
+                    zeroBasedBudgetCard
+                    categorySectionView
+                    goalsSectionView
                 }
                 .padding()
             }
@@ -139,6 +177,12 @@ struct DashboardView: View {
             .profileButton()
             .onChange(of: period) { _, _ in
                 selectedDate = .now
+            }
+            .sheet(isPresented: $showingAddGoal) {
+                GoalFormView()
+            }
+            .sheet(item: $goalToEdit) { goal in
+                GoalFormView(goalToEdit: goal)
             }
         }
     }
@@ -168,38 +212,76 @@ struct DashboardView: View {
         }
     }
 
-    private var heroRing: some View {
-        let remaining = totalLimit - totalSpent
-        let isOver = totalLimit > 0 && remaining < 0
+    private var heroDualRing: some View {
+        let isDeficit = netCashFlow < 0
+        let isOverBudget = totalLimit > 0 && totalSpent > totalLimit
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: 12) {
             ZStack {
-                RingView(progress: totalProgress,
-                         color: isOver ? .red : .purple,
-                         lineWidth: 22,
-                         gradient: isOver ? nil : [.blue, .purple, .pink])
+                // Outer ring: Income vs Target (Teal/Green)
+                RingView(
+                    progress: incomeProgress,
+                    color: .green,
+                    lineWidth: 18,
+                    gradient: [.teal, .green, .mint]
+                )
+                .frame(width: 220, height: 220)
 
-                VStack(spacing: 2) {
-                    if totalLimit > 0 {
-                        Text(abs(remaining), format: .currency(code: currencyCode).precision(.fractionLength(0)))
-                            .font(.title.bold())
-                            .foregroundStyle(isOver ? .red : .primary)
-                        Text(isOver ? "over budget" : "left")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // Inner ring: Expenses vs Budget (Purple/Blue, or Red if over)
+                RingView(
+                    progress: expenseProgress,
+                    color: isOverBudget ? .red : .purple,
+                    lineWidth: 18,
+                    gradient: isOverBudget ? nil : [.blue, .purple, .pink]
+                )
+                .frame(width: 172, height: 172)
+
+                // Center metrics: Net Cash Flow + Savings Rate
+                VStack(spacing: 4) {
+                    Text(netCashFlow >= 0 ? "+\(netCashFlow.formatted(.currency(code: currencyCode).precision(.fractionLength(0))))" : netCashFlow.formatted(.currency(code: currencyCode).precision(.fractionLength(0))))
+                        .font(.title2.bold())
+                        .foregroundStyle(isDeficit ? .red : .green)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+
+                    if let rate = savingsRate {
+                        Text("\(Int(rate.rounded()))% saved")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(rate >= 0 ? Color.green.opacity(0.18) : Color.red.opacity(0.18))
+                            .foregroundStyle(rate >= 0 ? .green : .red)
+                            .clipShape(Capsule())
                     } else {
-                        Text("No limits set")
-                            .font(.caption)
+                        Text("Net cash flow")
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
+                .padding(.horizontal, 24)
             }
             .frame(width: 220, height: 220)
+            .padding(.top, 4)
 
-            if totalLimit > 0 {
-                Text("\(totalSpent, format: .currency(code: currencyCode).precision(.fractionLength(0))) of \(totalLimit, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            // Ring legend
+            HStack(spacing: 20) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(LinearGradient(colors: [.teal, .green], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 10, height: 10)
+                    Text("Income: \(totalIncome, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 10, height: 10)
+                    Text("Spent: \(totalSpent, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 8)
@@ -207,12 +289,278 @@ struct DashboardView: View {
 
     private var summaryCard: some View {
         HStack {
-            SummaryItem(title: "Spent", amount: totalSpent, color: .red)
-            Divider().frame(height: 40)
             SummaryItem(title: "Income", amount: totalIncome, color: .green)
             Divider().frame(height: 40)
-            SummaryItem(title: "Net", amount: totalIncome - totalSpent,
-                        color: totalIncome >= totalSpent ? .green : .red)
+            SummaryItem(title: "Spent", amount: totalSpent, color: .red)
+            Divider().frame(height: 40)
+            SummaryItem(title: "Net", amount: netCashFlow,
+                        color: netCashFlow >= 0 ? .green : .red)
+            if let rate = savingsRate {
+                Divider().frame(height: 40)
+                VStack(spacing: 4) {
+                    Text("Saved")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(Int(rate.rounded()))%")
+                        .font(.headline)
+                        .foregroundStyle(rate >= 0 ? .green : .red)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var zeroBasedBudgetCard: some View {
+        let unallocated = totalIncomeTarget - totalLimit
+        let isBalanced = totalIncomeTarget > 0 && unallocated == 0
+        let isOverBudget = totalIncomeTarget > 0 && unallocated < 0
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Zero-Based Budget", systemImage: "scalemass.fill")
+                    .font(.subheadline.bold())
+                Spacer()
+                if totalIncomeTarget > 0 {
+                    Text(isBalanced ? "Balanced" : (isOverBudget ? "Over Target" : "Surplus"))
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(isBalanced ? Color.blue.opacity(0.15) : (isOverBudget ? Color.red.opacity(0.15) : Color.green.opacity(0.15)))
+                        .foregroundStyle(isBalanced ? .blue : (isOverBudget ? .red : .green))
+                        .clipShape(Capsule())
+                }
+            }
+
+            if totalIncomeTarget > 0 {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Target Income")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(totalIncomeTarget, format: .currency(code: currencyCode).precision(.fractionLength(0)))
+                            .font(.subheadline.bold())
+                    }
+                    Spacer()
+                    Image(systemName: "minus")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    VStack(alignment: .center, spacing: 2) {
+                        Text("Allocated")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(totalLimit, format: .currency(code: currencyCode).precision(.fractionLength(0)))
+                            .font(.subheadline.bold())
+                    }
+                    Spacer()
+                    Image(systemName: "equal")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(isOverBudget ? "Deficit" : "Unallocated")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(abs(unallocated), format: .currency(code: currencyCode).precision(.fractionLength(0)))
+                            .font(.subheadline.bold())
+                            .foregroundStyle(isOverBudget ? .red : .green)
+                    }
+                }
+
+                Text(isOverBudget
+                     ? "Budget limits exceed expected income by \(abs(unallocated), format: .currency(code: currencyCode).precision(.fractionLength(0)))."
+                     : (isBalanced
+                        ? "Every dollar has a job! 100% of expected income is budgeted."
+                        : "You have \(unallocated, format: .currency(code: currencyCode).precision(.fractionLength(0))) unassigned. Allocate it to categories or savings goals!"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Set your baseline monthly income in Profile or create income categories to plan your zero-based budget.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var categorySectionView: some View {
+        VStack(spacing: 16) {
+            Picker("Categories", selection: $categorySection) {
+                ForEach(CategoryType.allCases, id: \.self) { type in
+                    Text(type.rawValue).tag(type)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if categorySection == .expense {
+                if expenseCategories.isEmpty {
+                    Text("No expense categories found.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 8)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 24) {
+                        ForEach(expenseCategories) { category in
+                            CategoryRingCell(
+                                name: category.name,
+                                icon: category.icon,
+                                spent: spent(in: category),
+                                limit: category.monthlyLimit * limitMultiplier,
+                                color: CategoryColor.color(named: category.colorName),
+                                isIncome: false
+                            )
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if uncategorizedSpent > 0 {
+                    HStack {
+                        Image(systemName: "questionmark.circle")
+                        Text("Uncategorized Spent")
+                        Spacer()
+                        Text(uncategorizedSpent, format: .currency(code: currencyCode))
+                            .bold()
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                }
+            } else {
+                if incomeCategories.isEmpty {
+                    Text("No income categories yet. Add them in Categories tab!")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 8)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 24) {
+                        ForEach(incomeCategories) { category in
+                            CategoryRingCell(
+                                name: category.name,
+                                icon: category.icon,
+                                spent: earned(in: category),
+                                limit: category.monthlyLimit * limitMultiplier,
+                                color: CategoryColor.color(named: category.colorName),
+                                isIncome: true
+                            )
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                if uncategorizedIncome > 0 {
+                    HStack {
+                        Image(systemName: "questionmark.circle")
+                        Text("Uncategorized Income")
+                        Spacer()
+                        Text(uncategorizedIncome, format: .currency(code: currencyCode))
+                            .bold()
+                            .foregroundStyle(.green)
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
+    }
+
+    private var goalsSectionView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Savings Goals", systemImage: "target")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showingAddGoal = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                }
+            }
+
+            if goals.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No savings goals yet.")
+                        .font(.subheadline.bold())
+                    Text("Track emergency funds, vacations, or investments funded by your surplus cash flow.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Create Goal") {
+                        showingAddGoal = true
+                    }
+                    .font(.caption.bold())
+                    .buttonStyle(.bordered)
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+            } else {
+                ForEach(goals) { goal in
+                    GoalRowView(goal: goal, netCashFlow: netCashFlow)
+                        .contentShape(Rectangle())
+                        .onTapGesture { goalToEdit = goal }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Goal Row View
+
+struct GoalRowView: View {
+    @AppStorage("currencyCode") private var currencyCode = "USD"
+    let goal: Goal
+    let netCashFlow: Decimal
+
+    private var progress: Double {
+        guard goal.targetAmount > 0 else { return 0 }
+        return NSDecimalNumber(decimal: min(goal.savedAmount / goal.targetAmount, 1)).doubleValue
+    }
+
+    private var isMonthlyFunded: Bool {
+        goal.monthlyContribution > 0 && netCashFlow >= goal.monthlyContribution
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(CategoryColor.color(named: goal.colorName).opacity(0.18))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: goal.icon)
+                        .foregroundStyle(CategoryColor.color(named: goal.colorName))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(goal.name)
+                        .font(.subheadline.bold())
+                    if goal.monthlyContribution > 0 {
+                        Text("\(goal.monthlyContribution, format: .currency(code: currencyCode).precision(.fractionLength(0))) / month target")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(goal.savedAmount, format: .currency(code: currencyCode).precision(.fractionLength(0))) of \(goal.targetAmount, format: .currency(code: currencyCode).precision(.fractionLength(0)))")
+                        .font(.caption.bold())
+                    if isMonthlyFunded {
+                        Text("Funded this period ✓")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+
+            ProgressView(value: progress)
+                .tint(CategoryColor.color(named: goal.colorName))
         }
         .padding()
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
@@ -249,23 +597,29 @@ struct CategoryRingCell: View {
     let spent: Decimal
     let limit: Decimal
     let color: Color
+    var isIncome: Bool = false
 
     private var hasLimit: Bool { limit > 0 }
-    private var isOver: Bool { hasLimit && spent > limit }
+    private var isOver: Bool { !isIncome && hasLimit && spent > limit }
+    private var isMet: Bool { isIncome && hasLimit && spent >= limit }
 
-    // Not clamped: 1.25 means 125% of the limit, and the ring wraps past full
     private var progress: Double {
-        guard hasLimit else { return 0 }
+        guard hasLimit else { return spent > 0 ? 1 : 0 }
         return NSDecimalNumber(decimal: spent / limit).doubleValue
     }
 
     var body: some View {
         VStack(spacing: 8) {
             ZStack {
-                RingView(progress: progress, color: color, lineWidth: 12)
+                RingView(
+                    progress: progress,
+                    color: isIncome ? (isMet ? .green : color) : (isOver ? .red : color),
+                    lineWidth: 12,
+                    gradient: isIncome ? (isMet ? [.teal, .green] : nil) : nil
+                )
                 Image(systemName: icon)
                     .font(.title3)
-                    .foregroundStyle(color)
+                    .foregroundStyle(isIncome ? (isMet ? .green : color) : color)
             }
             .frame(width: 84, height: 84)
 
@@ -275,7 +629,7 @@ struct CategoryRingCell: View {
 
             Text(spent, format: .currency(code: currencyCode).precision(.fractionLength(0)))
                 .font(.caption2)
-                .foregroundStyle(isOver ? .red : .secondary)
+                .foregroundStyle(isIncome ? (isMet ? .green : .secondary) : (isOver ? .red : .secondary))
         }
     }
 }
@@ -329,5 +683,5 @@ struct RingView: View {
 
 #Preview {
     DashboardView()
-        .modelContainer(for: [BudgetTransaction.self, Category.self], inMemory: true)
+        .modelContainer(for: [BudgetTransaction.self, Category.self, Goal.self], inMemory: true)
 }

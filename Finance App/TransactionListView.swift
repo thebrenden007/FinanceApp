@@ -19,32 +19,71 @@ struct TransactionListView: View {
         NavigationStack {
             List {
                 ForEach(transactions) { transaction in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(transaction.category?.name ?? "Uncategorized")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(transaction.note.isEmpty ? "No note" : transaction.note)
-                            Text(transaction.date, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        if let category = transaction.category {
+                            ZStack {
+                                Circle()
+                                    .fill(CategoryColor.color(named: category.colorName).opacity(0.18))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: category.icon)
+                                    .foregroundStyle(CategoryColor.color(named: category.colorName))
+                            }
+                        } else {
+                            ZStack {
+                                Circle()
+                                    .fill((transaction.isExpense ? Color.gray : Color.green).opacity(0.18))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: transaction.isExpense ? "arrow.down" : "arrow.up")
+                                    .foregroundStyle(transaction.isExpense ? Color.gray : Color.green)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(transaction.note.isEmpty ? (transaction.category?.name ?? (transaction.isExpense ? "Expense" : "Income")) : transaction.note)
+                                .font(.body)
+                            HStack(spacing: 4) {
+                                if let category = transaction.category {
+                                    Text(category.name)
+                                    Text("•")
+                                }
+                                Text(transaction.date, style: .date)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                         .contentShape(Rectangle())
                         .onTapGesture { transactionToEdit = transaction }
+
                         Spacer()
-                        Text(transaction.amount, format: .currency(code: currencyCode))
-                            .foregroundStyle(transaction.isExpense ? .red : .green)
+
+                        HStack(spacing: 2) {
+                            Text(transaction.isExpense ? "-" : "+")
+                            Text(transaction.amount, format: .currency(code: currencyCode))
+                        }
+                        .font(.subheadline.bold())
+                        .foregroundStyle(transaction.isExpense ? Color.primary : Color.green)
                     }
                 }
                 .onDelete(perform: delete)
             }
+            .overlay {
+                if transactions.isEmpty {
+                    ContentUnavailableView(
+                        "No Transactions",
+                        systemImage: "creditcard",
+                        description: Text("Tap + to log your income and expenses.")
+                    )
+                }
+            }
             .navigationTitle("Transactions")
             .profileButton()
             .toolbar {
-                Button {
-                    showingAdd = true
-                } label: {
-                    Image(systemName: "plus")
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
             .sheet(isPresented: $showingAdd) {

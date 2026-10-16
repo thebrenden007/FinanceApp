@@ -25,6 +25,10 @@ struct AddTransactionView: View {
         Decimal(string: amountText) ?? 0
     }
 
+    private var filteredCategories: [Category] {
+        categories.filter { $0.isIncome == !isExpense }
+    }
+
     init(transactionToEdit: BudgetTransaction? = nil) {
         self.transactionToEdit = transactionToEdit
         _amountText = State(initialValue: transactionToEdit.map { "\($0.amount)" } ?? "")
@@ -42,13 +46,18 @@ struct AddTransactionView: View {
                     Text("Income").tag(false)
                 }
                 .pickerStyle(.segmented)
+                .onChange(of: isExpense) { _, newValue in
+                    if let cat = category, cat.isIncome == newValue {
+                        category = nil
+                    }
+                }
 
                 TextField("Amount", text: $amountText)
                     .keyboardType(.decimalPad)
 
                 Picker("Category", selection: $category) {
                     Text("None").tag(Category?.none)
-                    ForEach(categories) { category in
+                    ForEach(filteredCategories) { category in
                         Text(category.name).tag(Category?.some(category))
                     }
                 }

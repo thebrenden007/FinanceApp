@@ -22,6 +22,7 @@ struct DashboardView: View {
     @AppStorage("userName") private var userName = ""
     @AppStorage("currencyCode") private var currencyCode = "USD"
     @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
+    @AppStorage("startingSavings") private var startingSavings: Double = 0
 
     @Query(sort: \Category.name) private var categories: [Category]
     @Query private var transactions: [BudgetTransaction]
@@ -31,7 +32,7 @@ struct DashboardView: View {
     @State private var selectedDate = Date.now
     @State private var categorySection: CategoryType = .expense
     @State private var showingAddGoal = false
-    @State private var goalToEdit: Goal?
+    @State private var goalToDetail: Goal?
     @State private var goalToContribute: Goal?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 3)
@@ -106,6 +107,15 @@ struct DashboardView: View {
         return Decimal(monthlyIncome) * limitMultiplier
     }
 
+    // MARK: - Total Savings Metrics
+    private var goalsSavingsTotal: Decimal {
+        goals.reduce(Decimal.zero) { $0 + $1.savedAmount }
+    }
+
+    private var totalSavings: Decimal {
+        Decimal(startingSavings) + goalsSavingsTotal
+    }
+
     private var expenseProgress: Double {
         guard totalLimit > 0 else {
             if totalIncome > 0 {
@@ -168,6 +178,7 @@ struct DashboardView: View {
                     periodPicker
                     heroDualRing
                     summaryCard
+                    totalSavingsDashboardBanner
                     zeroBasedBudgetCard
                     categorySectionView
                     goalsSectionView
@@ -182,8 +193,10 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAddGoal) {
                 GoalFormView()
             }
-            .sheet(item: $goalToEdit) { goal in
-                GoalFormView(goalToEdit: goal)
+            .sheet(item: $goalToDetail) { goal in
+                NavigationStack {
+                    GoalDetailView(goal: goal, netCashFlow: netCashFlow)
+                }
             }
             .sheet(item: $goalToContribute) { goal in
                 GoalContributeSheet(goal: goal, netCashFlow: netCashFlow)
@@ -310,6 +323,39 @@ struct DashboardView: View {
                         .foregroundStyle(rate >= 0 ? .green : .red)
                 }
                 .frame(maxWidth: .infinity)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var totalSavingsDashboardBanner: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("TOTAL ACCUMULATED SAVINGS")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.secondary)
+                Text(totalSavings, format: .currency(code: currencyCode).precision(.fractionLength(0)))
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+            }
+
+            Spacer()
+
+            NavigationLink {
+                GoalsView()
+            } label: {
+                HStack(spacing: 4) {
+                    Text("View Goals")
+                        .font(.caption.bold())
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.bold())
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Color.accentColor.opacity(0.15))
+                .foregroundStyle(Color.accentColor)
+                .clipShape(Capsule())
             }
         }
         .padding()
@@ -511,7 +557,7 @@ struct DashboardView: View {
                             goalToContribute = goal
                         },
                         onEdit: {
-                            goalToEdit = goal
+                            goalToDetail = goal
                         }
                     )
                 }

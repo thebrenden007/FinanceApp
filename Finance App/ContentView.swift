@@ -27,6 +27,10 @@ struct ContentView: View {
                     .tabItem {
                         Label("Transactions", systemImage: "list.bullet")
                     }
+                GoalsView()
+                    .tabItem {
+                        Label("Goals", systemImage: "target")
+                    }
                 CategoryListView()
                     .tabItem {
                         Label("Categories", systemImage: "square.grid.2x2")
@@ -77,5 +81,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [BudgetTransaction.self, Category.self], inMemory: true)
+        .modelContainer(for: [BudgetTransaction.self, Category.self, Goal.self], inMemory: true)
 }

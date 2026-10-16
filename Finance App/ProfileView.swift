@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ProfileView: View {
     @AppStorage("userName") private var userName = ""
@@ -13,18 +14,47 @@ struct ProfileView: View {
     @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
     @AppStorage("avatarColor") private var avatarColor = "blue"
     @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
+    @AppStorage("startingSavings") private var startingSavings: Double = 0
     @Environment(\.dismiss) private var dismiss
+
+    @Query private var goals: [Goal]
 
     private let avatarIcons = [
         "person.fill", "face.smiling", "star.fill", "heart.fill", "leaf.fill",
         "flame.fill", "bolt.fill", "pawprint.fill", "moon.fill", "sun.max.fill"
     ]
 
+    private var goalsSavingsTotal: Decimal {
+        goals.reduce(Decimal.zero) { $0 + $1.savedAmount }
+    }
+
+    private var combinedTotalSavings: Decimal {
+        Decimal(startingSavings) + goalsSavingsTotal
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("You") {
                     TextField("Your name", text: $userName)
+                }
+
+                Section {
+                    TextField("Baseline Savings (Emergency fund, bank, etc.)", value: $startingSavings, format: .currency(code: currencyCode))
+                        .keyboardType(.decimalPad)
+
+                    HStack {
+                        Text("Combined Total Savings")
+                            .font(.subheadline)
+                        Spacer()
+                        Text(combinedTotalSavings, format: .currency(code: currencyCode))
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.green)
+                    }
+                } header: {
+                    Text("Total Savings & Net Worth")
+                } footer: {
+                    Text("Baseline savings includes external bank accounts or rainy day funds. Goals savings (\(goalsSavingsTotal, format: .currency(code: currencyCode).precision(.fractionLength(0)))) are added automatically.")
                 }
 
                 Section {
@@ -103,4 +133,5 @@ struct ProfileView: View {
 
 #Preview {
     ProfileView()
+        .modelContainer(for: [Goal.self], inMemory: true)
 }

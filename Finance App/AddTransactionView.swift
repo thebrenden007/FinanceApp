@@ -20,6 +20,8 @@ struct AddTransactionView: View {
     @State private var note: String
     @State private var isExpense: Bool
     @State private var category: Category?
+    @State private var isRecurring: Bool
+    @State private var recurrence: RecurrenceFrequency
 
     private var amount: Decimal {
         Decimal(string: amountText) ?? 0
@@ -36,6 +38,8 @@ struct AddTransactionView: View {
         _note = State(initialValue: transactionToEdit?.note ?? "")
         _isExpense = State(initialValue: transactionToEdit?.isExpense ?? true)
         _category = State(initialValue: transactionToEdit?.category)
+        _isRecurring = State(initialValue: transactionToEdit?.isRecurring ?? false)
+        _recurrence = State(initialValue: transactionToEdit?.recurrence ?? .monthly)
     }
 
     var body: some View {
@@ -64,6 +68,17 @@ struct AddTransactionView: View {
 
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                 TextField("Note", text: $note)
+
+                Section("Recurrence") {
+                    Toggle(isExpense ? "Recurring Bill / Subscription" : "Recurring Paycheck / Income", isOn: $isRecurring)
+                    if isRecurring {
+                        Picker("Frequency", selection: $recurrence) {
+                            ForEach(RecurrenceFrequency.allCases.filter { $0 != .none }, id: \.self) { freq in
+                                Text(freq.rawValue).tag(freq)
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle(transactionToEdit == nil ? "New Transaction" : "Edit Transaction")
             .toolbar {
@@ -79,15 +94,26 @@ struct AddTransactionView: View {
     }
 
     private func save() {
+        let finalRecurrence = isRecurring ? recurrence : .none
+
         if let transaction = transactionToEdit {
             transaction.amount = amount
             transaction.date = date
             transaction.note = note
             transaction.isExpense = isExpense
             transaction.category = category
+            transaction.isRecurring = isRecurring
+            transaction.recurrence = finalRecurrence
         } else {
-            let transaction = BudgetTransaction(amount: amount, date: date, note: note,
-                                                isExpense: isExpense, category: category)
+            let transaction = BudgetTransaction(
+                amount: amount,
+                date: date,
+                note: note,
+                isExpense: isExpense,
+                category: category,
+                isRecurring: isRecurring,
+                recurrence: finalRecurrence
+            )
             modelContext.insert(transaction)
         }
         dismiss()

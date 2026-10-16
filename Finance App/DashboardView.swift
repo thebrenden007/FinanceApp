@@ -18,6 +18,14 @@ enum CategoryType: String, CaseIterable {
     case income = "Income"
 }
 
+struct SmartInsight: Identifiable {
+    let id = UUID()
+    let icon: String
+    let iconColor: Color
+    let title: String
+    let message: String
+}
+
 struct DashboardView: View {
     @AppStorage("userName") private var userName = ""
     @AppStorage("currencyCode") private var currencyCode = "USD"
@@ -157,6 +165,103 @@ struct DashboardView: View {
             .reduce(0) { $0 + $1.amount }
     }
 
+    // MARK: - Recurring Cash Flow & Payday Countdown
+
+    private var nextPaycheckInfo: (days: Int, date: Date, amount: Decimal)? {
+        let recurringIncome = transactions.filter { !$0.isExpense && $0.isRecurring }
+        guard !recurringIncome.isEmpty else { return nil }
+
+        var candidateDates: [(date: Date, amount: Decimal)] = []
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+
+        for tx in recurringIncome {
+            let intervalDays: Int
+            switch tx.recurrence {
+            case .weekly: intervalDays = 7
+            case .biweekly: intervalDays = 14
+            case .monthly: intervalDays = 30
+            case .yearly: intervalDays = 365
+            case .none: continue
+            }
+
+            var nextDate = calendar.startOfDay(for: tx.date)
+            while nextDate <= today {
+                guard let advanced = calendar.date(byAdding: .day, value: intervalDays, to: nextDate) else { break }
+                nextDate = advanced
+            }
+            candidateDates.append((date: nextDate, amount: tx.amount))
+        }
+
+        guard let soonest = candidateDates.min(by: { $0.date < $1.date }) else { return nil }
+        let days = calendar.dateComponents([.day], from: today, to: soonest.date).day ?? 0
+        return (days: max(0, days), date: soonest.date, amount: soonest.amount)
+    }
+
+
+    private func formatMoney(_ amount: Decimal) -> String {
+        amount.formatted(.currency(code: currencyCode).precision(.fractionLength(0)))
+    }
+
+    // MARK: - Smart Insights Engine
+
+    private var smartInsights: [SmartInsight] {
+        var items: [SmartInsight] = []
+
+        // 1. High category spending warnings
+        for category in expenseCategories where category.monthlyLimit > 0 {
+            let catSpent = spent(in: category)
+            let catLimit = category.monthlyLimit * limitMultiplier
+            let ratio = NSDecimalNumber(decimal: catSpent / catLimit).doubleValue
+            if ratio >= 1.0 {
+                items.append(SmartInsight(
+                    icon: "exclamationmark.octagon.fill",
+                    iconColor: .red,
+                    title: "\(category.name) Over Budget",
+                    message: "You've spent \(formatMoney(catSpent)) of your \(formatMoney(catLimit)) limit."
+                ))
+            } else if ratio >= 0.85 {
+                items.append(SmartInsight(
+                    icon: "exclamationmark.triangle.fill",
+                    iconColor: .orange,
+                    title: "\(category.name) Near Limit",
+                    message: "\(Int(ratio * 100))% of \(category.name) limit used (\(formatMoney(catSpent)) / \(formatMoney(catLimit)))."
+                ))
+            }
+        }
+
+        // 2. Goal completion alerts
+        for goal in goals {
+            if goal.progress >= 1.0 {
+                items.append(SmartInsight(
+                    icon: "checkmark.seal.fill",
+                    iconColor: .green,
+                    title: "\(goal.name) Reached! 🎉",
+                    message: "Congratulations! You fully funded this goal (\(formatMoney(goal.savedAmount)))."
+                ))
+            } else if goal.remainingAmount <= 250 && goal.remainingAmount > 0 {
+                items.append(SmartInsight(
+                    icon: "sparkles",
+                    iconColor: .yellow,
+                    title: "\(goal.name) Almost Done",
+                    message: "Only \(formatMoney(goal.remainingAmount)) left to hit 100%!"
+                ))
+            }
+        }
+
+        // 3. Positive savings rate encouragement
+        if let rate = savingsRate, rate >= 20 {
+            items.append(SmartInsight(
+                icon: "chart.line.uptrend.xyaxis",
+                iconColor: .green,
+                title: "Strong Savings Rate",
+                message: "You're keeping \(Int(rate.rounded()))% of your income this period. Great financial discipline!"
+            ))
+        }
+
+        return items
+    }
+
     private var greeting: String {
         switch Calendar.current.component(.hour, from: .now) {
         case 0..<12: return "Good morning"
@@ -174,6 +279,14 @@ struct DashboardView: View {
                     Text("\(greeting), \(userName)")
                         .font(.title2.bold())
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let paycheck = nextPaycheckInfo {
+                        paydayCountdownBanner(paycheck)
+                    }
+
+                    if !smartInsights.isEmpty {
+                        insightsSectionView
+                    }
 
                     periodPicker
                     heroDualRing
@@ -200,6 +313,79 @@ struct DashboardView: View {
             }
             .sheet(item: $goalToContribute) { goal in
                 GoalContributeSheet(goal: goal, netCashFlow: netCashFlow)
+            }
+        }
+    }
+
+    // MARK: - Payday Countdown Banner
+
+    private func paydayCountdownBanner(_ info: (days: Int, date: Date, amount: Decimal)) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.18))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "banknote.fill")
+                    .font(.title3)
+                    .foregroundStyle(.green)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.days == 0 ? "Payday is Today!" : "Next Payday in \(info.days) Day\(info.days == 1 ? "" : "s")")
+                    .font(.subheadline.bold())
+                Text("\(info.date.formatted(.dateTime.weekday().month().day())) • \(info.amount, format: .currency(code: currencyCode).precision(.fractionLength(0))) expected")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if netCashFlow > 0 {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Safe to Spend")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(netCashFlow, format: .currency(code: currencyCode).precision(.fractionLength(0)))
+                        .font(.caption.bold())
+                        .foregroundStyle(.green)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Smart Insights Carousel / List
+
+    private var insightsSectionView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Smart Insights", systemImage: "lightbulb.fill")
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(smartInsights) { insight in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: insight.icon)
+                                .font(.title3)
+                                .foregroundStyle(insight.iconColor)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(insight.title)
+                                    .font(.caption.bold())
+                                Text(insight.message)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .frame(width: 260, alignment: .leading)
+                        .padding(12)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                }
             }
         }
     }

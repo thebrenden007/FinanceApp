@@ -9,7 +9,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @AppStorage("userName") private var userName = ""
-    @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
+    @AppStorage("avatarIcon") private var avatarIcon = "bluefox.logo"
     @AppStorage("avatarColor") private var avatarColor = "blue"
     @AppStorage("currencyCode") private var currencyCode = "USD"
 
@@ -26,8 +26,8 @@ struct WelcomeView: View {
     ]
 
     private let avatarIcons = [
-        "person.fill", "face.smiling", "star.fill", "heart.fill", "leaf.fill",
-        "flame.fill", "bolt.fill", "pawprint.fill", "moon.fill", "sun.max.fill"
+        "bluefox.logo", "pawprint.fill", "person.fill", "face.smiling", "star.fill",
+        "heart.fill", "leaf.fill", "flame.fill", "bolt.fill", "moon.fill"
     ]
 
     private var trimmedName: String {
@@ -97,6 +97,13 @@ struct WelcomeView: View {
     private var helloStep: some View {
         VStack {
             Spacer()
+
+            Image("DeveloperLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 90, height: 90)
+                .padding(.bottom, 8)
+
             ZStack {
                 Text(greetings[greetingIndex])
                     .id(greetingIndex)
@@ -104,7 +111,7 @@ struct WelcomeView: View {
             }
             .font(.system(size: 64, weight: .bold, design: .rounded))
             .foregroundStyle(
-                LinearGradient(colors: [.blue, .purple, .pink],
+                LinearGradient(colors: [BlueFoxTheme.arcticBlue, BlueFoxTheme.electricCyan],
                                startPoint: .leading, endPoint: .trailing)
             )
             .frame(height: 90)
@@ -163,20 +170,37 @@ struct WelcomeView: View {
 
                 ZStack {
                     Circle().fill(CategoryColor.color(named: avatarColor))
-                    Image(systemName: avatarIcon)
-                        .font(.system(size: 44))
-                        .foregroundStyle(.white)
+                    if avatarIcon == "bluefox.logo" {
+                        Image("DeveloperLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 60, height: 60)
+                    } else {
+                        Image(systemName: avatarIcon)
+                            .font(.system(size: 44))
+                            .foregroundStyle(.white)
+                    }
                 }
                 .frame(width: 100, height: 100)
 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 16) {
                     ForEach(avatarIcons, id: \.self) { symbol in
-                        Image(systemName: symbol)
-                            .font(.title2)
-                            .frame(width: 44, height: 44)
-                            .background(avatarIcon == symbol ? Color.accentColor.opacity(0.25) : Color.clear)
-                            .clipShape(Circle())
-                            .onTapGesture { avatarIcon = symbol }
+                        Group {
+                            if symbol == "bluefox.logo" {
+                                Image("DeveloperLogo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 26, height: 26)
+                            } else {
+                                Image(systemName: symbol)
+                                    .font(.title2)
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                        .background(avatarIcon == symbol ? Color.accentColor.opacity(0.25) : Color.clear)
+                        .clipShape(Circle())
+                        .contentShape(Rectangle())
+                        .onTapGesture { avatarIcon = symbol }
                     }
                 }
 

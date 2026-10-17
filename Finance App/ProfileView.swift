@@ -11,8 +11,8 @@ import SwiftData
 struct ProfileView: View {
     @AppStorage("userName") private var userName = ""
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
-    @AppStorage("avatarColor") private var avatarColor = "amber"
+    @AppStorage("avatarIcon") private var avatarIcon = "bluefox.logo"
+    @AppStorage("avatarColor") private var avatarColor = "blue"
     @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
     @AppStorage("startingSavings") private var startingSavings: Double = 0
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
@@ -22,8 +22,8 @@ struct ProfileView: View {
     @Query private var goals: [Goal]
 
     private let avatarIcons = [
-        "person.fill", "face.smiling", "star.fill", "heart.fill", "leaf.fill",
-        "flame.fill", "bolt.fill", "pawprint.fill", "moon.fill", "sun.max.fill"
+        "bluefox.logo", "pawprint.fill", "person.fill", "face.smiling", "star.fill",
+        "heart.fill", "leaf.fill", "flame.fill", "bolt.fill", "moon.fill"
     ]
 
     private var goalsSavingsTotal: Decimal {
@@ -58,8 +58,10 @@ struct ProfileView: View {
                                         )
                                     )
                                     .frame(width: 30, height: 30)
-                                Text("🦊")
-                                    .font(.caption)
+                                Image("DeveloperLogo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
@@ -82,21 +84,29 @@ struct ProfileView: View {
                 }
 
                 Section {
-                    TextField("Baseline Savings (Emergency fund, bank, etc.)", value: $startingSavings, format: .currency(code: currencyCode))
+                    TextField("External Savings Balance", value: $startingSavings, format: .currency(code: currencyCode))
                         .keyboardType(.decimalPad)
 
                     HStack {
-                        Text("Combined Total Savings")
-                            .font(.subheadline)
+                        Text("Active Goals Balance")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(goalsSavingsTotal, format: .currency(code: currencyCode))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Combined Net Savings")
+                            .bold()
                         Spacer()
                         Text(combinedTotalSavings, format: .currency(code: currencyCode))
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.green)
+                            .bold()
+                            .foregroundStyle(Color.accentColor)
                     }
                 } header: {
-                    Text("Total Savings & Net Worth")
+                    Text("Savings & Net Worth")
                 } footer: {
-                    Text("Baseline savings includes external bank accounts or rainy day funds. Goals savings (\(goalsSavingsTotal, format: .currency(code: currencyCode).precision(.fractionLength(0)))) are added automatically.")
+                    Text("Enter any starting or external savings you have in checking/savings accounts. This combines with your app goals for a total savings overview.")
                 }
 
                 Section {
@@ -112,9 +122,16 @@ struct ProfileView: View {
                     ZStack {
                         Circle()
                             .fill(CategoryColor.color(named: avatarColor))
-                        Image(systemName: avatarIcon)
-                            .font(.system(size: 36))
-                            .foregroundStyle(.white)
+                        if avatarIcon == "bluefox.logo" {
+                            Image("DeveloperLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 50, height: 50)
+                        } else {
+                            Image(systemName: avatarIcon)
+                                .font(.system(size: 36))
+                                .foregroundStyle(.white)
+                        }
                     }
                     .frame(width: 80, height: 80)
                     .frame(maxWidth: .infinity)
@@ -122,12 +139,22 @@ struct ProfileView: View {
 
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 5), spacing: 16) {
                         ForEach(avatarIcons, id: \.self) { symbol in
-                            Image(systemName: symbol)
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(avatarIcon == symbol ? Color.accentColor.opacity(0.25) : Color.clear)
-                                .clipShape(Circle())
-                                .onTapGesture { avatarIcon = symbol }
+                            Group {
+                                if symbol == "bluefox.logo" {
+                                    Image("DeveloperLogo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 26, height: 26)
+                                } else {
+                                    Image(systemName: symbol)
+                                        .font(.title2)
+                                }
+                            }
+                            .frame(width: 44, height: 44)
+                            .background(avatarIcon == symbol ? Color.accentColor.opacity(0.25) : Color.clear)
+                            .clipShape(Circle())
+                            .contentShape(Rectangle())
+                            .onTapGesture { avatarIcon = symbol }
                         }
                     }
                     .padding(.vertical, 8)
@@ -161,6 +188,40 @@ struct ProfileView: View {
                     Text("Currency")
                 } footer: {
                     Text("Changing currency only changes the symbol. Existing amounts are not converted.")
+                }
+
+                Section {
+                    HStack(spacing: 16) {
+                        Image("DeveloperLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 48, height: 48)
+                            .padding(6)
+                            .background(
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [BlueFoxTheme.arcticBlue.opacity(0.22), BlueFoxTheme.electricCyan.opacity(0.12)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                            )
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Blue Fox Finance")
+                                .font(.headline)
+                            Text("Designed & Developed by Brenden")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text("Version 1.0 • Developer Edition")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("About & Developer")
                 }
             }
             .navigationTitle("Profile")

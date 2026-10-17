@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ProfileButtonModifier: ViewModifier {
-    @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
+    @AppStorage("avatarIcon") private var avatarIcon = "bluefox.logo"
     @AppStorage("avatarColor") private var avatarColor = "blue"
     @State private var showingProfile = false
 
@@ -22,9 +22,16 @@ struct ProfileButtonModifier: ViewModifier {
                         ZStack {
                             Circle()
                                 .fill(CategoryColor.color(named: avatarColor))
-                            Image(systemName: avatarIcon)
-                                .font(.system(size: 14))
-                                .foregroundStyle(.white)
+                            if avatarIcon == "bluefox.logo" {
+                                Image("DeveloperLogo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                            } else {
+                                Image(systemName: avatarIcon)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.white)
+                            }
                         }
                         .frame(width: 30, height: 30)
                     }

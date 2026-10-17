@@ -14,7 +14,7 @@ struct ContentView: View {
     @AppStorage("hasSeededIncomeCategories") private var hasSeededIncome = false
     @AppStorage("userName") private var userName = ""
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
 
     private var currentColorScheme: ColorScheme? {
         (AppAppearance(rawValue: appAppearance) ?? .system).colorScheme
@@ -47,7 +47,7 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(currentColorScheme)
-        .tint(beeThemeEnabled ? BeeTheme.amberGold : Color.accentColor)
+        .tint(blueFoxThemeEnabled ? BlueFoxTheme.arcticBlue : Color.accentColor)
     }
 
     private func seedCategoriesIfNeeded() {

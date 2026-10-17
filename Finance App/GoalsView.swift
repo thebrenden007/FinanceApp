@@ -69,7 +69,7 @@ struct GoalsView: View {
                 }
                 .padding()
             }
-            .beeBackground()
+            .blueFoxBackground()
             .navigationTitle("Savings & Goals")
             .profileButton()
             .toolbar {
@@ -176,7 +176,7 @@ struct GoalsView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 20)
+        .blueFoxCard(cornerRadius: 20)
     }
 
     // MARK: - Quick Actions Bar
@@ -237,7 +237,7 @@ struct GoalsView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .beeCard(cornerRadius: 16)
+                .blueFoxCard(cornerRadius: 16)
             } else {
                 ForEach(goals) { goal in
                     GoalRowView(

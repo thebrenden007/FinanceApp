@@ -15,7 +15,7 @@ struct CategoryListView: View {
     @State private var categoryToEdit: Category?
     @State private var showingIncome = false
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
 
     private var filteredCategories: [Category] {
         categories.filter { $0.isIncome == showingIncome }
@@ -58,11 +58,11 @@ struct CategoryListView: View {
                         }
                         .contentShape(Rectangle())
                         .onTapGesture { categoryToEdit = category }
-                        .beeRowStyle()
+                        .blueFoxRowStyle()
                     }
                     .onDelete(perform: delete)
                 }
-                .scrollContentBackground(beeThemeEnabled ? .hidden : .automatic)
+                .scrollContentBackground(blueFoxThemeEnabled ? .hidden : .automatic)
                 .overlay {
                     if filteredCategories.isEmpty {
                         ContentUnavailableView(
@@ -73,7 +73,7 @@ struct CategoryListView: View {
                     }
                 }
             }
-            .beeBackground()
+            .blueFoxBackground()
             .navigationTitle("Categories")
             .profileButton()
             .toolbar {

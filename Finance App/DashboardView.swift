@@ -298,7 +298,7 @@ struct DashboardView: View {
                 }
                 .padding()
             }
-            .beeBackground()
+            .blueFoxBackground()
             .navigationTitle("Dashboard")
             .profileButton()
             .onChange(of: period) { _, _ in
@@ -353,7 +353,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 16)
+        .blueFoxCard(cornerRadius: 16)
     }
 
     // MARK: - Smart Insights Carousel / List
@@ -384,7 +384,7 @@ struct DashboardView: View {
                         }
                         .frame(width: 260, alignment: .leading)
                         .padding(12)
-                        .beeCard(cornerRadius: 14)
+                        .blueFoxCard(cornerRadius: 14)
                     }
                 }
             }
@@ -513,7 +513,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 16)
+        .blueFoxCard(cornerRadius: 16)
     }
 
     private var totalSavingsDashboardBanner: some View {
@@ -546,7 +546,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 16)
+        .blueFoxCard(cornerRadius: 16)
     }
 
     private var zeroBasedBudgetCard: some View {
@@ -620,7 +620,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 16)
+        .blueFoxCard(cornerRadius: 16)
     }
 
     private var categorySectionView: some View {
@@ -663,7 +663,7 @@ struct DashboardView: View {
                             .bold()
                     }
                     .padding()
-                    .beeCard(cornerRadius: 16)
+                    .blueFoxCard(cornerRadius: 16)
                 }
             } else {
                 if incomeCategories.isEmpty {
@@ -697,7 +697,7 @@ struct DashboardView: View {
                             .foregroundStyle(.green)
                     }
                     .padding()
-                    .beeCard(cornerRadius: 16)
+                    .blueFoxCard(cornerRadius: 16)
                 }
             }
         }
@@ -734,7 +734,7 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .beeCard(cornerRadius: 16)
+                .blueFoxCard(cornerRadius: 16)
             } else {
                 ForEach(goals) { goal in
                     GoalRowView(
@@ -831,7 +831,7 @@ struct GoalRowView: View {
             }
         }
         .padding()
-        .beeCard(cornerRadius: 16)
+        .blueFoxCard(cornerRadius: 16)
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit()

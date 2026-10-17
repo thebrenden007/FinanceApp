@@ -16,7 +16,7 @@ struct ProfileView: View {
     @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
     @AppStorage("startingSavings") private var startingSavings: Double = 0
     @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
     @Environment(\.dismiss) private var dismiss
 
     @Query private var goals: [Goal]
@@ -46,26 +46,26 @@ struct ProfileView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Toggle(isOn: $beeThemeEnabled) {
+                    Toggle(isOn: $blueFoxThemeEnabled) {
                         HStack(spacing: 12) {
                             ZStack {
                                 Circle()
                                     .fill(
                                         LinearGradient(
-                                            colors: [BeeTheme.honeyGold, BeeTheme.amberGold],
+                                            colors: [BlueFoxTheme.arcticBlue, BlueFoxTheme.electricCyan],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
                                     )
                                     .frame(width: 30, height: 30)
-                                Text("🐝")
+                                Text("🦊")
                                     .font(.caption)
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Bee Yellow Gradient")
+                                Text("Blue Fox Theme")
                                     .font(.body)
-                                Text("Bumblebee gold & charcoal styling")
+                                Text("Arctic blue & slate fox styling")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -74,7 +74,7 @@ struct ProfileView: View {
                 } header: {
                     Text("Theme & Styling")
                 } footer: {
-                    Text("Choose between Light, Dark, or System mode. The Bee Theme adds a warm honey-gold gradient background.")
+                    Text("Choose between Light, Dark, or System mode. The Blue Fox Theme adds a cool arctic gradient background.")
                 }
 
                 Section("You") {

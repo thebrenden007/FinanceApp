@@ -1,5 +1,5 @@
 //
-//  BeeTheme.swift
+//  BlueFoxTheme.swift
 //  FinanceApp
 //
 //  Created by Brenden Smit on 10/17/26.
@@ -31,28 +31,28 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
-struct BeeTheme {
-    // MARK: - Honey & Bee Color Palette
+struct BlueFoxTheme {
+    // MARK: - Blue Fox Color Palette
 
-    static let honeyGold = Color(red: 1.0, green: 0.76, blue: 0.03) // #FFC207
-    static let amberGold = Color(red: 0.96, green: 0.62, blue: 0.0) // #F59E00
-    static let pollenYellow = Color(red: 1.0, green: 0.88, blue: 0.35) // #FFE059
-    static let butterCream = Color(red: 0.99, green: 0.96, blue: 0.84) // #FDF5D6
+    static let arcticBlue = Color(red: 0.20, green: 0.58, blue: 0.98) // #3394FA
+    static let electricCyan = Color(red: 0.15, green: 0.75, blue: 0.96) // #26C0F5
+    static let glacialMist = Color(red: 0.92, green: 0.96, blue: 1.0) // #EBF5FF
+    static let iceSilver = Color(red: 0.84, green: 0.90, blue: 0.98) // #D6E6FA
 
-    // Dark Mode Bee Tones
-    static let beeOnyx = Color(red: 0.08, green: 0.08, blue: 0.08) // Midnight Bee Black
-    static let beeDarkCharcoal = Color(red: 0.15, green: 0.13, blue: 0.09) // Deep Honey Charcoal
-    static let beeDarkGlow = Color(red: 0.30, green: 0.22, blue: 0.04) // Dark Honey Glow
+    // Dark Mode Arctic Navy & Slate Fox Tones
+    static let polarNight = Color(red: 0.04, green: 0.06, blue: 0.12) // #0A101F
+    static let slateFox = Color(red: 0.09, green: 0.14, blue: 0.23) // #17243B
+    static let auroraGlow = Color(red: 0.10, green: 0.25, blue: 0.44) // #1A4070
 
-    // MARK: - Bee Gradient Background
+    // MARK: - Blue Fox Gradient Background
 
     static func backgroundGradient(for colorScheme: ColorScheme) -> LinearGradient {
         if colorScheme == .dark {
             return LinearGradient(
                 colors: [
-                    Color(red: 0.28, green: 0.21, blue: 0.04), // Warm glowing honey amber at top
-                    Color(red: 0.12, green: 0.11, blue: 0.08), // Dark honeycomb charcoal
-                    Color(red: 0.06, green: 0.06, blue: 0.07)  // Pure deep bee onyx
+                    Color(red: 0.09, green: 0.22, blue: 0.40), // Glowing northern aurora at top
+                    Color(red: 0.07, green: 0.12, blue: 0.22), // Midnight slate fox
+                    Color(red: 0.04, green: 0.06, blue: 0.12)  // Deep polar night
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -60,9 +60,9 @@ struct BeeTheme {
         } else {
             return LinearGradient(
                 colors: [
-                    Color(red: 1.0, green: 0.80, blue: 0.18), // Vibrant warm bumblebee yellow
-                    Color(red: 1.0, green: 0.89, blue: 0.44), // Sweet honey gold
-                    Color(red: 0.99, green: 0.96, blue: 0.84)  // Soft warm honeycomb cream
+                    Color(red: 0.32, green: 0.65, blue: 0.98), // Vibrant arctic sky blue
+                    Color(red: 0.62, green: 0.82, blue: 0.99), // Soft glacial mist
+                    Color(red: 0.93, green: 0.96, blue: 1.0)   // Pure crisp ice frost
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -76,18 +76,18 @@ struct BeeTheme {
         Group {
             if colorScheme == .dark {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(red: 0.14, green: 0.13, blue: 0.10).opacity(0.85))
+                    .fill(Color(red: 0.09, green: 0.13, blue: 0.22).opacity(0.85))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(honeyGold.opacity(0.22), lineWidth: 1)
+                            .stroke(electricCyan.opacity(0.24), lineWidth: 1)
                     )
             } else {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.86))
+                    .fill(Color.white.opacity(0.88))
                     .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color(red: 0.95, green: 0.75, blue: 0.20).opacity(0.35), lineWidth: 1)
+                            .stroke(arcticBlue.opacity(0.30), lineWidth: 1)
                     )
             }
         }
@@ -96,14 +96,14 @@ struct BeeTheme {
 
 // MARK: - View Modifiers
 
-struct BeeBackgroundModifier: ViewModifier {
+struct BlueFoxBackgroundModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
 
     func body(content: Content) -> some View {
         ZStack {
-            if beeThemeEnabled {
-                BeeTheme.backgroundGradient(for: colorScheme)
+            if blueFoxThemeEnabled {
+                BlueFoxTheme.backgroundGradient(for: colorScheme)
                     .ignoresSafeArea()
             }
             content
@@ -111,16 +111,16 @@ struct BeeBackgroundModifier: ViewModifier {
     }
 }
 
-struct BeeCardModifier: ViewModifier {
+struct BlueFoxCardModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
     var cornerRadius: CGFloat = 16
 
     func body(content: Content) -> some View {
-        if beeThemeEnabled {
+        if blueFoxThemeEnabled {
             content
                 .background(
-                    BeeTheme.cardFill(for: colorScheme)
+                    BlueFoxTheme.cardFill(for: colorScheme)
                 )
         } else {
             content
@@ -129,18 +129,18 @@ struct BeeCardModifier: ViewModifier {
     }
 }
 
-struct BeeRowBackground: View {
+struct BlueFoxRowBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+    @AppStorage("blueFoxThemeEnabled") private var blueFoxThemeEnabled = true
 
     var body: some View {
-        if beeThemeEnabled {
+        if blueFoxThemeEnabled {
             if colorScheme == .dark {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(red: 0.14, green: 0.13, blue: 0.10).opacity(0.85))
+                    .fill(Color(red: 0.09, green: 0.13, blue: 0.22).opacity(0.85))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(BeeTheme.honeyGold.opacity(0.20), lineWidth: 1)
+                            .stroke(BlueFoxTheme.electricCyan.opacity(0.22), lineWidth: 1)
                     )
                     .padding(.vertical, 2)
             } else {
@@ -148,7 +148,7 @@ struct BeeRowBackground: View {
                     .fill(Color.white.opacity(0.88))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(BeeTheme.amberGold.opacity(0.25), lineWidth: 1)
+                            .stroke(BlueFoxTheme.arcticBlue.opacity(0.25), lineWidth: 1)
                     )
                     .padding(.vertical, 2)
             }
@@ -159,15 +159,15 @@ struct BeeRowBackground: View {
 }
 
 extension View {
-    func beeBackground() -> some View {
-        self.modifier(BeeBackgroundModifier())
+    func blueFoxBackground() -> some View {
+        self.modifier(BlueFoxBackgroundModifier())
     }
 
-    func beeCard(cornerRadius: CGFloat = 16) -> some View {
-        self.modifier(BeeCardModifier(cornerRadius: cornerRadius))
+    func blueFoxCard(cornerRadius: CGFloat = 16) -> some View {
+        self.modifier(BlueFoxCardModifier(cornerRadius: cornerRadius))
     }
 
-    func beeRowStyle() -> some View {
-        self.listRowBackground(BeeRowBackground())
+    func blueFoxRowStyle() -> some View {
+        self.listRowBackground(BlueFoxRowBackground())
     }
 }

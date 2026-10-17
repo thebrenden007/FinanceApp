@@ -12,9 +12,11 @@ struct ProfileView: View {
     @AppStorage("userName") private var userName = ""
     @AppStorage("currencyCode") private var currencyCode = "USD"
     @AppStorage("avatarIcon") private var avatarIcon = "person.fill"
-    @AppStorage("avatarColor") private var avatarColor = "blue"
+    @AppStorage("avatarColor") private var avatarColor = "amber"
     @AppStorage("monthlyIncome") private var monthlyIncome: Double = 0
     @AppStorage("startingSavings") private var startingSavings: Double = 0
+    @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
+    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
     @Environment(\.dismiss) private var dismiss
 
     @Query private var goals: [Goal]
@@ -35,6 +37,46 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Theme Mode", selection: $appAppearance) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Label(appearance.rawValue, systemImage: appearance.icon)
+                                .tag(appearance.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle(isOn: $beeThemeEnabled) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [BeeTheme.honeyGold, BeeTheme.amberGold],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 30, height: 30)
+                                Text("🐝")
+                                    .font(.caption)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Bee Yellow Gradient")
+                                    .font(.body)
+                                Text("Bumblebee gold & charcoal styling")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Theme & Styling")
+                } footer: {
+                    Text("Choose between Light, Dark, or System mode. The Bee Theme adds a warm honey-gold gradient background.")
+                }
+
                 Section("You") {
                     TextField("Your name", text: $userName)
                 }

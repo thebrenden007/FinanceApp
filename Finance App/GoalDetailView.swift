@@ -74,7 +74,7 @@ struct GoalDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
+                .beeCard(cornerRadius: 20)
 
                 // MARK: - Action Buttons
                 HStack(spacing: 16) {
@@ -144,7 +144,7 @@ struct GoalDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                .beeCard(cornerRadius: 16)
 
                 // MARK: - Timeline & Pace Card
                 VStack(alignment: .leading, spacing: 12) {
@@ -204,7 +204,7 @@ struct GoalDetailView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                .beeCard(cornerRadius: 16)
 
                 // MARK: - Danger Zone
                 Button(role: .destructive) {
@@ -217,6 +217,7 @@ struct GoalDetailView: View {
             }
             .padding()
         }
+        .beeBackground()
         .navigationTitle("Goal Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

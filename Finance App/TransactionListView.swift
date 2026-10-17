@@ -27,6 +27,7 @@ struct TransactionListView: View {
     @State private var selectedCategory: Category? = nil
 
     @AppStorage("currencyCode") private var currencyCode = "USD"
+    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
 
     private var filteredTransactions: [BudgetTransaction] {
         transactions.filter { tx in
@@ -170,9 +171,11 @@ struct TransactionListView: View {
                             .font(.subheadline.bold())
                             .foregroundStyle(transaction.isExpense ? Color.primary : Color.green)
                         }
+                        .beeRowStyle()
                     }
                     .onDelete(perform: delete)
                 }
+                .scrollContentBackground(beeThemeEnabled ? .hidden : .automatic)
                 .overlay {
                     if filteredTransactions.isEmpty {
                         ContentUnavailableView(
@@ -183,6 +186,7 @@ struct TransactionListView: View {
                     }
                 }
             }
+            .beeBackground()
             .searchable(text: $searchText, prompt: "Search notes or categories")
             .navigationTitle("Transactions")
             .profileButton()

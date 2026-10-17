@@ -89,6 +89,7 @@ struct WelcomeView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
+        .beeBackground()
     }
 
     // MARK: - Steps

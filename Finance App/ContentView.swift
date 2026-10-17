@@ -13,31 +13,41 @@ struct ContentView: View {
     @AppStorage("hasSeededCategories") private var hasSeeded = false
     @AppStorage("hasSeededIncomeCategories") private var hasSeededIncome = false
     @AppStorage("userName") private var userName = ""
+    @AppStorage("appAppearance") private var appAppearance = AppAppearance.system.rawValue
+    @AppStorage("beeThemeEnabled") private var beeThemeEnabled = true
+
+    private var currentColorScheme: ColorScheme? {
+        (AppAppearance(rawValue: appAppearance) ?? .system).colorScheme
+    }
     
     var body: some View {
-        if userName.isEmpty {
-            WelcomeView()
-        } else {
-            TabView {
-                DashboardView()
-                    .tabItem {
-                        Label("Dashboard", systemImage: "chart.pie.fill")
-                    }
-                TransactionListView()
-                    .tabItem {
-                        Label("Transactions", systemImage: "list.bullet")
-                    }
-                GoalsView()
-                    .tabItem {
-                        Label("Goals", systemImage: "target")
-                    }
-                CategoryListView()
-                    .tabItem {
-                        Label("Categories", systemImage: "square.grid.2x2")
-                    }
+        Group {
+            if userName.isEmpty {
+                WelcomeView()
+            } else {
+                TabView {
+                    DashboardView()
+                        .tabItem {
+                            Label("Dashboard", systemImage: "chart.pie.fill")
+                        }
+                    TransactionListView()
+                        .tabItem {
+                            Label("Transactions", systemImage: "list.bullet")
+                        }
+                    GoalsView()
+                        .tabItem {
+                            Label("Goals", systemImage: "target")
+                        }
+                    CategoryListView()
+                        .tabItem {
+                            Label("Categories", systemImage: "square.grid.2x2")
+                        }
+                }
+                .onAppear(perform: seedCategoriesIfNeeded)
             }
-            .onAppear(perform: seedCategoriesIfNeeded)
         }
+        .preferredColorScheme(currentColorScheme)
+        .tint(beeThemeEnabled ? BeeTheme.amberGold : Color.accentColor)
     }
 
     private func seedCategoriesIfNeeded() {

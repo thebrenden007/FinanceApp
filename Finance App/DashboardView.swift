@@ -298,6 +298,7 @@ struct DashboardView: View {
                 }
                 .padding()
             }
+            .beeBackground()
             .navigationTitle("Dashboard")
             .profileButton()
             .onChange(of: period) { _, _ in
@@ -352,7 +353,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .beeCard(cornerRadius: 16)
     }
 
     // MARK: - Smart Insights Carousel / List
@@ -383,7 +384,7 @@ struct DashboardView: View {
                         }
                         .frame(width: 260, alignment: .leading)
                         .padding(12)
-                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                        .beeCard(cornerRadius: 14)
                     }
                 }
             }
@@ -512,7 +513,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .beeCard(cornerRadius: 16)
     }
 
     private var totalSavingsDashboardBanner: some View {
@@ -545,7 +546,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .beeCard(cornerRadius: 16)
     }
 
     private var zeroBasedBudgetCard: some View {
@@ -619,7 +620,7 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .beeCard(cornerRadius: 16)
     }
 
     private var categorySectionView: some View {
@@ -662,7 +663,7 @@ struct DashboardView: View {
                             .bold()
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    .beeCard(cornerRadius: 16)
                 }
             } else {
                 if incomeCategories.isEmpty {
@@ -696,7 +697,7 @@ struct DashboardView: View {
                             .foregroundStyle(.green)
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    .beeCard(cornerRadius: 16)
                 }
             }
         }
@@ -733,7 +734,7 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                .beeCard(cornerRadius: 16)
             } else {
                 ForEach(goals) { goal in
                     GoalRowView(
@@ -830,7 +831,7 @@ struct GoalRowView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+        .beeCard(cornerRadius: 16)
         .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
